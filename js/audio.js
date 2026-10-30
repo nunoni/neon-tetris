@@ -216,6 +216,8 @@ class AudioEngine {
   startMusic() {
     if (!this.ctx || this.musicPlaying) return;
     this.musicPlaying = true;
+    this.musicBus.gain.cancelScheduledValues(this.now);
+    this.musicBus.gain.setValueAtTime(0.42, this.now);
     this._buildTimeline();
     this._loopStart = this.now + 0.1;
     this._ptr = 0;

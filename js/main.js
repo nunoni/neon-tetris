@@ -54,7 +54,7 @@ const renderPass = new THREE.RenderPass(scene, camera);
 composer.addPass(renderPass);
 
 const bloomPass = new THREE.UnrealBloomPass(
-  new THREE.Vector2(window.innerWidth, window.innerHeight), 0.95, 0.62, 0.30,
+  new THREE.Vector2(window.innerWidth, window.innerHeight), 0.78, 0.55, 0.42,
 );
 composer.addPass(bloomPass);
 
@@ -144,15 +144,15 @@ const BLOCK_FRAG = `
     float inner = 1.0 - smoothstep(0.0, 0.6, m);
     float diff = max(dot(N, normalize(vec3(0.45, 0.85, 0.55))), 0.0);
     float diff2 = max(dot(N, normalize(vec3(-0.5, -0.35, 0.4))), 0.0);
-    vec3 col = uColor * (0.14 + 0.5 * diff + 0.16 * diff2);
-    col += uColor * edge * 1.35;
-    col += uColor * inner * 0.30;
-    col += uColor * fres * 1.1;
+    vec3 col = uColor * (0.12 + 0.42 * diff + 0.14 * diff2);
+    col += uColor * edge * 0.95;
+    col += uColor * inner * 0.22;
+    col += uColor * fres * 0.75;
     float pulse = uPulse * (0.65 + 0.35 * sin(uTime * 7.0));
-    col *= (1.0 + pulse * 0.9 + uBoost * 2.2);
+    col *= (1.0 + pulse * 0.55 + uBoost * 1.4);
     col = mix(col, col * 0.22, uDim);
     float cd = length(vUv - 0.5);
-    col += uColor * smoothstep(0.16, 0.0, cd) * 0.5;
+    col += uColor * smoothstep(0.16, 0.0, cd) * 0.3;
     gl_FragColor = vec4(col, uAlpha);
   }
 `;
@@ -555,7 +555,7 @@ function updateActiveCubes(dt) {
   const type = game.active ? game.active.type : null;
   if (type) {
     activeMats[type].uniforms.uPulse.value = 1;
-    activeMats[type].uniforms.uBoost.value = 0.25;
+    activeMats[type].uniforms.uBoost.value = 0.12;
   }
   lean = lerp(lean, leanTarget, 1 - Math.exp(-dt * 8));
   leanTarget = lerp(leanTarget, 0, 1 - Math.exp(-dt * 4));
@@ -815,12 +815,12 @@ function updateGlobalUniforms(rawDt) {
   fxRgb = Math.max(0, fxRgb - rawDt * 3.5);
   flashVal = Math.max(0, flashVal - rawDt * 2.2);
   floorMat.uniforms.uBeat.value = beat;
-  bloomPass.strength = 0.9 + beat * 0.35 + fxGlow;
+  bloomPass.strength = 0.78 + beat * 0.28 + fxGlow;
   finalPass.uniforms.uTime.value = sharedTime.value;
   finalPass.uniforms.uFlash.value = flashVal;
   finalPass.uniforms.uRgbShift.value = 0.0016 + fxRgb * 0.011;
   finalPass.uniforms.uDanger.value = dangerLevel;
-  frameMat.color.copy(frameBaseColor).multiplyScalar(1 + beat * 0.9 + fxGlow * 0.8);
+  frameMat.color.copy(frameBaseColor).multiplyScalar(1 + beat * 0.6 + fxGlow * 0.7);
 
   hueCurrent = lerp(hueCurrent, levelHue, 1 - Math.exp(-rawDt * 0.8));
   finalPass.uniforms.uHue.value = (hueCurrent - 0.58) * 0.55;
@@ -1447,6 +1447,7 @@ document.getElementById('gameover-screen').addEventListener('click', () => {
 
 function restart() {
   game.reset();
+  audio.stopMusic();
   clearBoardVisuals();
   els.hud.classList.remove('hidden');
   els.level.textContent = '1';
@@ -1499,18 +1500,22 @@ function frame(now) {
   updateInput(rawDt);
 
   if (game.state === 'clearing') {
-    clearTimer -= dt;
-    if (clearTimer <= 0) {
-      const rows = game.clearingRows.slice();
-      game.finishClear();
-      /* shift surviving blocks down to their new rows */
-      for (const m of lockedMap.values()) {
-        const shift = rows.filter((r) => r > m.userData.r).length;
-        m.userData.r += shift;
-        const w = gridToWorld(m.userData.r, m.userData.c);
-        m.userData.tx = w.x; m.userData.ty = w.y;
-      }
-    }
+  clearTimer -= dt;
+  if (clearTimer <= 0) {
+   const rows = game.clearingRows.slice();
+   game.finishClear();
+   /* shift surviving blocks down, then rebuild the (r,c)->mesh map */
+   const survivors = [];
+   for (const m of lockedMap.values()) {
+   const shift = rows.filter((r) => r > m.userData.r).length;
+   m.userData.r += shift;
+   const w = gridToWorld(m.userData.r, m.userData.c);
+   m.userData.tx = w.x; m.userData.ty = w.y;
+   survivors.push(m);
+   }
+   lockedMap.clear();
+   for (const m of survivors) lockedMap.set(`${m.userData.r},${m.userData.c}`, m);
+  }
   }
 
   refreshActivePiece();
@@ -1551,15 +1556,39 @@ window.addEventListener('error', (e) => {
   if (params.get('autostart')) setTimeout(() => restart(), 400);
   if (params.get('democlear')) {
     setTimeout(() => {
-      if (game.state !== 'playing') return;
-      for (let c = 0; c < COLS; c++) if (c !== 4 && c !== 5) game.grid[ROWS - 1][c] = 'J';
-      game.active = game.makePiece('O');
-      game.active.x = 4; game.active.y = ROWS - 3;
-      game.hardDrop();
+      try {
+        if (game.state !== 'playing') { window.__demoFail = 'state=' + game.state; return; }
+        for (let c = 0; c < COLS; c++) if (c !== 4 && c !== 5) game.grid[ROWS - 1][c] = 'J';
+        game.active = game.makePiece('O');
+        game.active.x = 4; game.active.y = ROWS - 3;
+        game.hardDrop();
+        window.__demoRan = true;
+      } catch (err) {
+        window.__demoFail = String(err && err.stack || err);
+      }
     }, 3200);
   }
   if (params.get('demodeath')) {
     setTimeout(() => { if (game.state === 'playing') game.gameOver(); }, 3200);
+  }
+  if (params.get('debug')) {
+    const dbg = document.createElement('div');
+    dbg.id = 'dbg';
+    dbg.style.cssText = 'position:fixed;left:8px;bottom:44px;z-index:99;color:#0f0;font:11px monospace;white-space:pre;pointer-events:none';
+    document.body.appendChild(dbg);
+    setInterval(() => {
+      let badKeys = 0, gridMismatch = 0, orphans = 0;
+      for (const [key, m] of lockedMap) {
+        const [r, c] = key.split(',').map(Number);
+        if (m.userData.r !== r || m.userData.c !== c) badKeys++;
+        if (r < 0 || r >= ROWS || c < 0 || c >= COLS || game.grid[r][c] === null) gridMismatch++;
+      }
+      for (const m of liveBlocks) {
+        if (activeCubes.includes(m)) continue;
+        if (lockedMap.get(`${m.userData.r},${m.userData.c}`) !== m) orphans++;
+      }
+      dbg.textContent = `badKeys=${badKeys} gridMismatch=${gridMismatch} orphans=${orphans} map=${lockedMap.size} live=${liveBlocks.size} state=${game.state} active=${game.active ? 1 : 0} demo=${window.__demoRan ? 'ran' : window.__demoFail || 'no'} score=${game.score}`;
+    }, 400);
   }
   if (params.get('autoplay')) {
     setInterval(() => {
