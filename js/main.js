@@ -8,12 +8,12 @@
 /* ============================ constants ============================ */
 
 const COLORS = {
-  I: 0x00e5ff, J: 0x3d6bff, L: 0xff9a2e, O: 0xffd500,
-  S: 0x2bff88, T: 0xbf5bff, Z: 0xff3860,
+  I: 0x38cfe8, J: 0x5578e0, L: 0xf5924a, O: 0xf2c14e,
+  S: 0x5cd9a0, T: 0xb07ce6, Z: 0xe8556f,
 };
 const COLORS_CSS = {
-  I: '#00e5ff', J: '#3d6bff', L: '#ff9a2e', O: '#ffd500',
-  S: '#2bff88', T: '#bf5bff', Z: '#ff3860',
+  I: '#38cfe8', J: '#5578e0', L: '#f5924a', O: '#f2c14e',
+  S: '#5cd9a0', T: '#b07ce6', Z: '#e8556f',
 };
 
 const CELL_GAP = 0.06;
@@ -34,7 +34,7 @@ const stage = document.getElementById('stage');
 const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
 renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.setClearColor(0x03050c, 1);
+renderer.setClearColor(0x0a0409, 1);
 stage.appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
@@ -195,8 +195,8 @@ const boardGroup = new THREE.Group();
 scene.add(boardGroup);
 
 /* --- neon frame tubes --- */
-const frameMat = new THREE.MeshBasicMaterial({ color: 0x19d7ff });
-const frameBaseColor = new THREE.Color(0x19d7ff);
+const frameMat = new THREE.MeshBasicMaterial({ color: 0xff8fc4 });
+const frameBaseColor = new THREE.Color(0xff8fc4);
 function tube(w, h, d, x, y, z) {
   const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), frameMat);
   m.position.set(x, y, z);
@@ -217,7 +217,7 @@ for (const [x, y] of [[-BOARD_W / 2 - 0.25, BOARD_H / 2 + 0.2], [BOARD_W / 2 + 0
 
 /* --- back plane grid --- */
 const backMat = new THREE.ShaderMaterial({
-  uniforms: { uTime: sharedTime, uColor: { value: new THREE.Color(0x0e86b5) } },
+  uniforms: { uTime: sharedTime, uColor: { value: new THREE.Color(0xc4708f) } },
   vertexShader: `varying vec2 vUv; varying vec3 vW;
     void main(){ vUv = uv; vec4 wp = modelMatrix * vec4(position,1.0); vW = wp.xyz;
     gl_Position = projectionMatrix * viewMatrix * wp; }`,
@@ -244,7 +244,7 @@ boardGroup.add(backPlane);
 
 /* --- floor grid --- */
 const floorMat = new THREE.ShaderMaterial({
-  uniforms: { uTime: sharedTime, uColor: { value: new THREE.Color(0x0fb3d6) }, uBeat: { value: 0 } },
+  uniforms: { uTime: sharedTime, uColor: { value: new THREE.Color(0xe08fc0) }, uBeat: { value: 0 } },
   extensions: { derivatives: true },
   vertexShader: `varying vec3 vW;
     void main(){ vec4 wp = modelMatrix * vec4(position,1.0); vW = wp.xyz;
@@ -304,8 +304,8 @@ scene.add(floor);
         float tw = 0.55 + 0.45 * sin(uTime * (0.5 + aHue) + aPhase * 19.0);
         gl_PointSize = aSize * tw * (240.0 / max(1.0, -mv.z));
         vA = tw;
-        vC = aHue < 0.15 ? vec3(0.75, 0.9, 1.0)
-           : (aHue < 0.55 ? vec3(0.45, 0.75, 1.0) : vec3(0.95, 0.55, 1.0));
+        vC = aHue < 0.15 ? vec3(1.0, 0.93, 0.97)
+           : (aHue < 0.55 ? vec3(1.0, 0.72, 0.86) : vec3(0.92, 0.6, 0.95));
         gl_Position = projectionMatrix * mv;
       }`,
     fragmentShader: `
@@ -329,8 +329,8 @@ scene.add(floor);
 const nebulaMat = new THREE.ShaderMaterial({
   uniforms: {
     uTime: sharedTime,
-    uColA: { value: new THREE.Color(0x040617) },
-    uColB: { value: new THREE.Color(0x0a2a4a) },
+    uColA: { value: new THREE.Color(0x120510) },
+    uColB: { value: new THREE.Color(0x3a1425) },
   },
   vertexShader: `varying vec2 vUv; void main(){ vUv = uv;
     gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
@@ -365,7 +365,7 @@ scene.add(nebula);
 
 /* --- giant wireframe icosahedron --- */
 const icoMat = new THREE.LineBasicMaterial({
-  color: 0x1a4870, transparent: true, opacity: 0.65,
+  color: 0x5e2840, transparent: true, opacity: 0.65,
   blending: THREE.AdditiveBlending, depthWrite: false,
 });
 const ico = new THREE.LineSegments(
@@ -783,7 +783,7 @@ function updateFxPools(dt) {
 const camFx = { shake: 0, punchOff: 0, punchVel: 0, fovKick: 0 };
 let beat = 0;
 let fxGlow = 0; let fxRgb = 0; let flashVal = 0; let timeScale = 1;
-let dangerLevel = 0; let levelHue = 0.58; let hueCurrent = 0.58;
+let dangerLevel = 0; let levelHue = 0.9; let hueCurrent = 0.9;
 
 function shake(amp) { camFx.shake = Math.max(camFx.shake, amp); }
 function punch(power) { camFx.punchVel -= power; }
@@ -823,7 +823,7 @@ function updateGlobalUniforms(rawDt) {
   frameMat.color.copy(frameBaseColor).multiplyScalar(1 + beat * 0.6 + fxGlow * 0.7);
 
   hueCurrent = lerp(hueCurrent, levelHue, 1 - Math.exp(-rawDt * 0.8));
-  finalPass.uniforms.uHue.value = (hueCurrent - 0.58) * 0.55;
+  finalPass.uniforms.uHue.value = (hueCurrent - 0.9) * 0.55;
   nebulaMat.uniforms.uColB.value.setHSL(hueCurrent, 0.85, 0.30).multiplyScalar(0.42);
   floorMat.uniforms.uColor.value.setHSL(hueCurrent, 0.9, 0.55);
 }
@@ -1092,7 +1092,7 @@ game.on('clear', (e) => {
 
   for (const r of e.rows) {
     const y = gridToWorld(r, 0).y;
-    rowFlash(y, big ? 0xffffff : 0x9ff3ff);
+    rowFlash(y, big ? 0xffffff : 0xffd1e6);
     for (let c = 0; c < COLS; c++) {
       const key = `${r},${c}`;
       const mesh = lockedMap.get(key);
@@ -1122,15 +1122,15 @@ game.on('clear', (e) => {
     audio.sfx('tetris');
     timeScale = 0.25;
     flashVal = 0.5;
-    finalPass.uniforms.uFlashColor.value.setRGB(0.65, 1, 1);
+    finalPass.uniforms.uFlashColor.value.setRGB(1, 0.78, 0.9);
     fxRgb = 1;
     camFx.fovKick = 7;
-    for (const r of e.rows) shockwave(0, gridToWorld(r, 0).y, 0x7dfcff, 13, 0.7);
+    for (const r of e.rows) shockwave(0, gridToWorld(r, 0).y, 0xffa8d4, 13, 0.7);
     shockwave(0, 0, 0xffffff, 18, 0.9);
     popup('TETRIS', 'p-tetris');
   } else {
     audio.sfx('clear', { lines: e.count });
-    shockwave(0, gridToWorld(e.rows[0], 0).y, 0x7dfcff, 8, 0.5);
+    shockwave(0, gridToWorld(e.rows[0], 0).y, 0xffa8d4, 8, 0.5);
     if (e.count >= 2) popup(e.name, e.count === 3 ? 'p-triple' : 'p-double');
     if (e.tspin) audio.sfx('tspin');
   }
@@ -1167,10 +1167,10 @@ game.on('levelup', (e) => {
   banner(`LEVEL ${e.level}`, 'levelup');
   flashVal = Math.max(flashVal, 0.3);
   fxGlow = Math.max(fxGlow, 0.8);
-  levelHue = 0.58 + ((e.level - 1) * 0.075) % 1;
+  levelHue = 0.9 + ((e.level - 1) * 0.075) % 1;
   shockwave(0, 0, 0xffffff, 20, 0.8);
   for (let i = 0; i < 5; i++) {
-    burst((Math.random() - 0.5) * 10, -9.4, 0.5, 0x7dfcff, 12,
+    burst((Math.random() - 0.5) * 10, -9.4, 0.5, 0xffa8d4, 12,
       { speed: 5, up: 8, life: 1, size: 10, gravity: 5 });
   }
 });
@@ -1254,7 +1254,7 @@ function clearBoardVisuals() {
   }
   displayScore = 0;
   els.combo.classList.remove('on');
-  levelHue = 0.58 + ((game.level - 1) * 0.075) % 1;
+  levelHue = 0.9 + ((game.level - 1) * 0.075) % 1;
 }
 
 /* --------------------------- screens ------------------------------- */

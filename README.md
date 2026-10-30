@@ -1,7 +1,8 @@
-# NEON TETRIS · 3D
+# TETRIS FOR HIND
 
-A over-the-top neon Tetris rendered in real 3D with WebGL (Three.js), post-processing bloom,
-particles, synthesized music and sound — everything runs locally, no server needed.
+A over-the-top pastel-neon Tetris dedicated to Hind — rendered in real 3D with WebGL
+(Three.js), post-processing bloom, particles, synthesized music and sound.
+Everything runs locally, no server needed.
 
 ## Run it
 
