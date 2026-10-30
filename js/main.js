@@ -132,7 +132,7 @@ const BLOCK_VERT = `
 
 const BLOCK_FRAG = `
   uniform vec3 uColor;
-  uniform float uTime, uPulse, uBoost, uDim, uAlpha;
+  uniform float uTime, uPulse, uBoost, uDim, uAlpha, uGlow;
   varying vec3 vN; varying vec3 vW; varying vec2 vUv;
   void main(){
     vec3 N = normalize(vN);
@@ -145,14 +145,14 @@ const BLOCK_FRAG = `
     float diff = max(dot(N, normalize(vec3(0.45, 0.85, 0.55))), 0.0);
     float diff2 = max(dot(N, normalize(vec3(-0.5, -0.35, 0.4))), 0.0);
     vec3 col = uColor * (0.12 + 0.42 * diff + 0.14 * diff2);
-    col += uColor * edge * 0.95;
+    col += uColor * edge * 0.95 * uGlow;
     col += uColor * inner * 0.22;
-    col += uColor * fres * 0.75;
+    col += uColor * fres * 0.75 * uGlow;
     float pulse = uPulse * (0.65 + 0.35 * sin(uTime * 7.0));
     col *= (1.0 + pulse * 0.3 + uBoost * 0.8);
     col = mix(col, col * 0.22, uDim);
     float cd = length(vUv - 0.5);
-    col += uColor * smoothstep(0.16, 0.0, cd) * 0.3;
+    col += uColor * smoothstep(0.16, 0.0, cd) * 0.3 * uGlow;
     gl_FragColor = vec4(col, uAlpha);
   }
 `;
@@ -160,14 +160,19 @@ const BLOCK_FRAG = `
 const blockGeo = new THREE.BoxGeometry(1 - CELL_GAP, 1 - CELL_GAP, 1 - CELL_GAP);
 
 function makeBlockMaterial(type, variant) {
+  /* normalize luminance so every color blooms about the same amount */
+  const base = new THREE.Color(COLORS[type]);
+  const luma = 0.2126 * base.r + 0.7152 * base.g + 0.0722 * base.b;
+  base.multiplyScalar(clamp(0.62 / luma, 0.7, 1.25));
   const mat = new THREE.ShaderMaterial({
     uniforms: {
-      uColor: { value: new THREE.Color(COLORS[type]) },
+      uColor: { value: base },
       uTime: sharedTime,
       uPulse: { value: 0 },
       uBoost: { value: 0 },
       uDim: { value: variant === 'dim' ? 1 : 0 },
       uAlpha: { value: 1 },
+      uGlow: { value: variant === 'locked' ? 0.55 : 1 },
     },
     vertexShader: BLOCK_VERT,
     fragmentShader: BLOCK_FRAG,
@@ -815,7 +820,7 @@ function updateGlobalUniforms(rawDt) {
   fxRgb = Math.max(0, fxRgb - rawDt * 3.5);
   flashVal = Math.max(0, flashVal - rawDt * 2.2);
   floorMat.uniforms.uBeat.value = beat;
-  bloomPass.strength = 0.78 + beat * 0.28 + fxGlow;
+  bloomPass.strength = 0.78 + beat * 0.15 + fxGlow;
   finalPass.uniforms.uTime.value = sharedTime.value;
   finalPass.uniforms.uFlash.value = flashVal;
   finalPass.uniforms.uRgbShift.value = 0.0016 + fxRgb * 0.011;
