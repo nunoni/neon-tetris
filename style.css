@@ -441,6 +441,48 @@ html, body {
   letter-spacing: 0.22em;
   color: rgba(216, 168, 194, 0.55);
 }
+
+#volume-wrap {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: rgba(216, 168, 194, 0.8);
+}
+
+#volume-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 110px;
+  height: 4px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, #ff9ed2 85%, rgba(255, 158, 210, 0.18) 85%);
+  outline: none;
+  cursor: pointer;
+}
+#volume-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #ffd9ea;
+  border: none;
+  box-shadow: 0 0 10px rgba(255, 158, 210, 0.8);
+}
+#volume-slider::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #ffd9ea;
+  border: none;
+  box-shadow: 0 0 10px rgba(255, 158, 210, 0.8);
+}
+#volume-slider::-moz-range-track {
+  height: 4px;
+  border-radius: 2px;
+  background: transparent;
+}
 #mute-btn {
   pointer-events: auto;
   width: 34px; height: 34px;

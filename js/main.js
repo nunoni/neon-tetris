@@ -1438,6 +1438,22 @@ els.mute.addEventListener('click', (e) => {
   els.mute.classList.toggle('muted', audio.muted);
 });
 
+const volumeSlider = document.getElementById('volume-slider');
+if (volumeSlider) {
+  volumeSlider.value = Math.round(audio.volume * 100);
+  const paintSlider = () => {
+    const v = Number(volumeSlider.value);
+    volumeSlider.style.background = `linear-gradient(90deg, #ff9ed2 ${v}%, rgba(255, 158, 210, 0.18) ${v}%)`;
+  };
+  paintSlider();
+  volumeSlider.addEventListener('pointerdown', (e) => e.stopPropagation());
+  volumeSlider.addEventListener('input', () => {
+    audio.setVolume(Number(volumeSlider.value) / 100);
+    paintSlider();
+    els.mute.classList.toggle('muted', audio.muted);
+  });
+}
+
 document.getElementById('menu').addEventListener('click', () => {
   if (game.state === 'menu' && !countingDown) { audio.sfx('select'); restart(); }
 });

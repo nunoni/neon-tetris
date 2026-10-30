@@ -33,6 +33,11 @@ class AudioEngine {
     this.onBeat = null;
     this._beatQueue = [];
     this._schedTimer = null;
+    this.volume = 0.85;
+    try {
+      const stored = parseFloat(localStorage.getItem('neon-tetris-3d-vol'));
+      if (!isNaN(stored)) this.volume = Math.min(1, Math.max(0, stored));
+    } catch (e) { /* ignore */ }
   }
 
   init() {
@@ -42,7 +47,7 @@ class AudioEngine {
     this.ctx = new AC();
 
     this.master = this.ctx.createGain();
-    this.master.gain.value = 0.85;
+    this.master.gain.value = this.muted ? 0 : this.volume;
     const comp = this.ctx.createDynamicsCompressor();
     comp.threshold.value = -18;
     comp.ratio.value = 6;
@@ -83,12 +88,22 @@ class AudioEngine {
 
   get now() { return this.ctx ? this.ctx.currentTime : 0; }
 
+  applyMasterGain(target) {
+    if (!this.ctx || !this.master) return;
+    this.master.gain.cancelScheduledValues(this.now);
+    this.master.gain.linearRampToValueAtTime(target, this.now + 0.1);
+  }
+
+  setVolume(v) {
+    this.volume = Math.min(1, Math.max(0, v));
+    if (this.muted && this.volume > 0) this.muted = false;
+    this.applyMasterGain(this.muted ? 0 : this.volume);
+    try { localStorage.setItem('neon-tetris-3d-vol', String(this.volume)); } catch (e) { /* ignore */ }
+  }
+
   toggleMute() {
     this.muted = !this.muted;
-    if (this.master) {
-      this.master.gain.cancelScheduledValues(this.now);
-      this.master.gain.linearRampToValueAtTime(this.muted ? 0 : 0.85, this.now + 0.1);
-    }
+    this.applyMasterGain(this.muted ? 0 : this.volume);
     return this.muted;
   }
 
