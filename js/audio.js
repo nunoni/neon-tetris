@@ -24,6 +24,7 @@ const MELODY = [
 const BASS_BARS = [45, 40, 45, 45, 38, 45, 40, 45];
 const LOOP_BEATS = 32;
 const BPM = 150;
+const MUSIC_LEVEL = 0.42;
 
 class AudioEngine {
   constructor() {
@@ -59,7 +60,7 @@ class AudioEngine {
     this.sfxBus.connect(this.master);
 
     this.musicBus = this.ctx.createGain();
-    this.musicBus.gain.value = 0.42;
+    this.musicBus.gain.value = MUSIC_LEVEL;
     this.musicBus.connect(this.master);
 
     /* echo on the music bus */
@@ -88,10 +89,12 @@ class AudioEngine {
 
   get now() { return this.ctx ? this.ctx.currentTime : 0; }
 
-  applyMasterGain(target) {
+  applyMasterGain(target, dur = 0.1) {
     if (!this.ctx || !this.master) return;
-    this.master.gain.cancelScheduledValues(this.now);
-    this.master.gain.linearRampToValueAtTime(target, this.now + 0.1);
+    const g = this.master.gain;
+    g.cancelScheduledValues(this.now);
+    g.setValueAtTime(g.value, this.now);
+    g.linearRampToValueAtTime(target, this.now + dur);
   }
 
   setVolume(v) {
@@ -230,9 +233,10 @@ class AudioEngine {
 
   startMusic() {
     if (!this.ctx || this.musicPlaying) return;
+    if (this.ctx.state === 'suspended') this.ctx.resume();
     this.musicPlaying = true;
     this.musicBus.gain.cancelScheduledValues(this.now);
-    this.musicBus.gain.setValueAtTime(0.42, this.now);
+    this.musicBus.gain.setValueAtTime(MUSIC_LEVEL, this.now);
     this._buildTimeline();
     this._loopStart = this.now + 0.1;
     this._ptr = 0;
@@ -248,12 +252,20 @@ class AudioEngine {
     this.musicPlaying = false;
     if (this._schedTimer) { clearInterval(this._schedTimer); this._schedTimer = null; }
     this._beatQueue.length = 0;
+    if (this.ctx) {
+      const g = this.musicBus.gain;
+      g.cancelScheduledValues(this.now);
+      g.setValueAtTime(g.value, this.now);
+      g.linearRampToValueAtTime(0.0001, this.now + 0.25);
+    }
   }
 
   setMusicOn(on) {
     if (!this.ctx) return;
-    this.musicBus.gain.cancelScheduledValues(this.now);
-    this.musicBus.gain.linearRampToValueAtTime(on ? 0.42 : 0.0, this.now + 0.3);
+    const g = this.musicBus.gain;
+    g.cancelScheduledValues(this.now);
+    g.setValueAtTime(g.value, this.now);
+    g.linearRampToValueAtTime(on ? MUSIC_LEVEL : 0.0, this.now + 0.3);
     if (on && !this.musicPlaying) this.startMusic();
   }
 
@@ -316,6 +328,7 @@ class AudioEngine {
   _playEvent(ev, when) {
     const bus = this.musicBus;
     if (ev.kind === 'lead') {
+      const durSec = Math.max(0.1, ev.dur * (60 / BPM) - 0.03);
       for (const detune of [-4, 4]) {
         const osc = this.ctx.createOscillator();
         osc.type = 'square';
@@ -328,19 +341,18 @@ class AudioEngine {
         vibGain.gain.linearRampToValueAtTime(7, when + 0.12);
         vib.connect(vibGain);
         vibGain.connect(osc.detune);
-        vib.start(when); vib.stop(when + ev.dur + 0.1);
+        vib.start(when); vib.stop(when + durSec + 0.15);
 
         const lp = this.ctx.createBiquadFilter();
         lp.type = 'lowpass'; lp.frequency.value = 2400;
         const gain = this.ctx.createGain();
-        const dur = ev.dur * (60 / BPM) - 0.03;
         gain.gain.setValueAtTime(0, when);
         gain.gain.linearRampToValueAtTime(0.085, when + 0.006);
         gain.gain.exponentialRampToValueAtTime(0.05, when + 0.09);
-        gain.gain.setValueAtTime(0.05, when + Math.max(0.09, dur - 0.05));
-        gain.gain.exponentialRampToValueAtTime(0.0001, when + dur);
+        gain.gain.setValueAtTime(0.05, when + Math.max(0.09, durSec - 0.05));
+        gain.gain.exponentialRampToValueAtTime(0.0001, when + durSec);
         osc.connect(lp); lp.connect(gain); gain.connect(bus);
-        osc.start(when); osc.stop(when + dur + 0.05);
+        osc.start(when); osc.stop(when + durSec + 0.05);
       }
     } else if (ev.kind === 'bass') {
       const osc = this.ctx.createOscillator();

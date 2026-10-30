@@ -97,7 +97,7 @@ function detectTSpin(grid, x, y, rot, lastAction, kickIndex) {
 const CLEAR_SCORES = {
   normal: [0, 100, 300, 500, 800],
   tspin: [400, 800, 1200, 1600, 1600],
-  mini: [200, 200, 400, 400, 400],
+  mini: [100, 200, 400, 400, 400],
 };
 
 const CLEAR_NAMES = ['NONE', 'SINGLE', 'DOUBLE', 'TRIPLE', 'TETRIS'];
@@ -144,6 +144,7 @@ class Game {
     this.lastAction = null;
     this.lastKick = 0;
     this.clearingRows = [];
+    this._pausedFrom = null;
     this.stats = { pieces: 0, tetris: 0, tSpins: 0, maxCombo: 0, timeMs: 0 };
   }
 
@@ -165,12 +166,14 @@ class Game {
 
   makePiece(type) {
     const size = SHAPES[type].length;
+    this.stats.pieces++;
     return {
       type,
       rot: 0,
       x: Math.floor((COLS - size) / 2),
       y: 0,
-      blocks: SHAPES[type].slice(),
+      lowestY: 0,
+      blocks: SHAPES[type].map((row) => row.slice()),
     };
   }
 
@@ -184,7 +187,6 @@ class Game {
     this.lockTimer = 0;
     this.lockResets = 0;
     this.lastAction = null;
-    this.stats.pieces++;
     if (this.collides(piece.x, piece.y, piece.blocks)) {
       this.active = piece; // keep it visible for the death animation
       this.gameOver();
@@ -201,8 +203,8 @@ class Game {
         if (!blocks[r][c]) continue;
         const gr = y + r;
         const gc = x + c;
-        if (gc < 0 || gc >= COLS || gr >= ROWS) return true;
-        if (gr >= 0 && this.grid[gr][gc] !== null) return true;
+        if (gc < 0 || gc >= COLS || gr < 0 || gr >= ROWS) return true;
+        if (this.grid[gr][gc] !== null) return true;
       }
     }
     return false;
@@ -263,6 +265,7 @@ class Game {
 
   rotate(dir) {
     if (this.state !== 'playing' || !this.active) return false;
+    if (dir !== 1 && dir !== -1) return false;
     const piece = this.active;
     if (piece.type === 'O') {
       this.emit('rotate', { dir, kicked: false, kickIndex: 0 });
@@ -300,9 +303,9 @@ class Game {
   /* ------------------------- update ------------------------------ */
 
   update(dt) {
-    if (this.state === 'playing') {
+    if (this.state === 'playing' || this.state === 'clearing') {
       this.stats.timeMs += dt * 1000;
-      if (this.active) this.stepGravity(dt);
+      if (this.state === 'playing' && this.active) this.stepGravity(dt);
     }
   }
 
@@ -318,14 +321,18 @@ class Game {
         this.active.y++;
         moved = true;
         if (this.softDrop) {
+          this.lastAction = 'fall';
           this.score += 1;
           this.emit('score', { total: this.score, gain: 1, soft: true });
           this.emit('softstep', {});
         } else {
           this.emit('fall', {});
         }
-        this.lockTimer = 0;
-        this.lockResets = 0;
+        if (this.active.y > this.active.lowestY) {
+          this.active.lowestY = this.active.y;
+          this.lockTimer = 0;
+          this.lockResets = 0;
+        }
       } else {
         this.gravityTimer = 0;
         break;
@@ -347,8 +354,8 @@ class Game {
     if (distance > 0) {
       this.score += distance * 2;
       this.emit('score', { total: this.score, gain: distance * 2, hard: true });
+      this.lastAction = 'drop';
     }
-    this.lastAction = 'drop';
     this.emit('harddrop', { distance, cells: this.cells(this.active) });
     this.lockPiece();
     return true;
@@ -359,6 +366,7 @@ class Game {
     this.canHold = false;
     const prev = this.hold;
     this.hold = this.active.type;
+    this.emit('hold', { type: this.hold, prev });
     if (prev === null) {
       this.spawnNext();
     } else {
@@ -374,7 +382,6 @@ class Game {
       }
       this.emit('spawn', { piece });
     }
-    this.emit('hold', { type: this.hold, prev });
     return true;
   }
 
@@ -412,6 +419,12 @@ class Game {
     if (fullRows.length > 0) {
       this.beginClear(fullRows, tspin);
     } else {
+      if (tspin) {
+        const pts = CLEAR_SCORES[tspin === 'full' ? 'tspin' : 'mini'][0] * this.level;
+        this.score += pts;
+        this.emit('score', { total: this.score, gain: pts, clear: false });
+        this.emit('tspin0', { tspin, points: pts });
+      }
       this.combo = -1;
       this.spawnNext();
     }
@@ -448,6 +461,7 @@ class Game {
 
     this.score += points;
     this.state = 'clearing';
+    this.emit('score', { total: this.score, gain: points, clear: true });
 
     this.emit('clear', {
       rows,

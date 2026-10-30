@@ -503,4 +503,20 @@ html, body {
 @media (pointer: coarse) {
   #hint { display: none; }
   .controls { grid-template-columns: repeat(2, minmax(130px, 170px)); }
+  #mute-btn { width: 44px; height: 44px; }
+  #volume-slider { width: 130px; height: 6px; }
+  #volume-slider::-webkit-slider-thumb { width: 18px; height: 18px; }
+  #volume-slider::-moz-range-thumb { width: 18px; height: 18px; }
+}
+
+@media (max-width: 540px) {
+  #hud { padding: 8px; }
+  .panel { min-width: 0; padding: 10px 12px; }
+  #score-val { font-size: 22px; }
+  .label { font-size: 9px; letter-spacing: 0.22em; margin-bottom: 5px; }
+  .stat { font-size: 10px; padding: 2px 0; gap: 10px; }
+  #hold-canvas { width: 96px; height: 66px; }
+  .next-cv { width: 84px; height: 55px; }
+  .next-cv.first { width: 100px; height: 65px; }
+  .title { font-size: clamp(30px, 9vw, 54px); }
 }

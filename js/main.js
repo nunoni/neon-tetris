@@ -404,6 +404,9 @@ partGeo.setAttribute('position', new THREE.BufferAttribute(partPos, 3));
 partGeo.setAttribute('aColor', new THREE.BufferAttribute(partCol, 3));
 partGeo.setAttribute('aSize', new THREE.BufferAttribute(partSize, 1));
 partGeo.setAttribute('aLife', new THREE.BufferAttribute(partLife, 1));
+for (const name of ['position', 'aColor', 'aSize', 'aLife']) {
+  partGeo.attributes[name].setUsage(THREE.DynamicDrawUsage);
+}
 const partMat = new THREE.ShaderMaterial({
   uniforms: {},
   vertexShader: `
@@ -489,10 +492,15 @@ function updateParticles(dt) {
     partLife[i] = clamp(P.life[i] * P.inv[i], 0, 1);
   }
   partGeo.setDrawRange(0, n);
-  partGeo.attributes.position.needsUpdate = true;
-  partGeo.attributes.aColor.needsUpdate = true;
-  partGeo.attributes.aSize.needsUpdate = true;
-  partGeo.attributes.aLife.needsUpdate = true;
+  const upload = (name, count) => {
+    const attr = partGeo.attributes[name];
+    attr.updateRange.count = count;
+    attr.needsUpdate = true;
+  };
+  upload('position', n * 3);
+  upload('aColor', n * 3);
+  upload('aSize', n);
+  upload('aLife', n);
 }
 
 /* =========================== block meshes =========================== */
@@ -512,6 +520,7 @@ function acquireBlock() {
   m.scale.set(1, 1, 1);
   m.rotation.set(0, 0, 0);
   m.renderOrder = 0;
+  m.userData = { r: 0, c: 0, type: 'I', tx: undefined, ty: undefined, snap: false, pop: 0, squash: 0 };
   return m;
 }
 
@@ -533,7 +542,7 @@ for (let i = 0; i < 4; i++) {
 let lean = 0; let leanTarget = 0;
 
 function refreshActivePiece(popIn = false) {
-  if (!game.active) {
+  if (!game.active || game.state === 'over') {
     for (const m of activeCubes) m.visible = false;
     return;
   }
@@ -1003,7 +1012,9 @@ function popup(text, cls = '', sub = '') {
   div.innerHTML = sub ? `<span>${text}</span><em>${sub}</em>` : `<span>${text}</span>`;
   div.style.setProperty('--dx', `${(Math.random() - 0.5) * 120}px`);
   els.popups.appendChild(div);
-  div.addEventListener('animationend', () => div.remove());
+  const kill = () => div.remove();
+  div.addEventListener('animationend', kill);
+  setTimeout(kill, 2600); /* backstop if animation events never fire */
 }
 
 function banner(text, cls = '') {
@@ -1011,7 +1022,9 @@ function banner(text, cls = '') {
   div.className = `banner-pop ${cls}`;
   div.textContent = text;
   els.banner.appendChild(div);
-  div.addEventListener('animationend', () => div.remove());
+  const kill = () => div.remove();
+  div.addEventListener('animationend', kill);
+  setTimeout(kill, 2800);
 }
 
 /* ============================ audio ================================= */
@@ -1029,6 +1042,21 @@ els.menuHs.textContent = highScore > 0 ? `HIGH SCORE ${highScore.toLocaleString(
 let clearTimer = 0;
 
 /* ---------- event wiring ---------- */
+
+/* restart-safe timers: flushed whenever the game restarts */
+const pendingTimers = [];
+function schedule(fn, ms) {
+  const id = setTimeout(() => {
+    const i = pendingTimers.indexOf(id);
+    if (i >= 0) pendingTimers.splice(i, 1);
+    fn();
+  }, ms);
+  pendingTimers.push(id);
+  return id;
+}
+function flushTimers() {
+  while (pendingTimers.length) clearTimeout(pendingTimers.pop());
+}
 
 game.on('spawn', () => { refreshActivePiece(true); redrawNext(); });
 
@@ -1088,6 +1116,13 @@ game.on('lock', (e) => {
     fresh.visible = false;
     activeCubes[i] = fresh;
   }
+  redrawHold();
+});
+
+game.on('tspin0', (e) => {
+  audio.sfx('tspin');
+  popup(e.tspin === 'full' ? 'T-SPIN' : 'MINI T-SPIN', 'p-tspin');
+  popup(`+${e.points.toLocaleString('en-US')}`, 'p-points');
 });
 
 game.on('clear', (e) => {
@@ -1118,11 +1153,6 @@ game.on('clear', (e) => {
   punch(big ? 14 : 5 + e.count * 2);
   fxGlow = Math.max(fxGlow, big ? 1.1 : 0.35 + e.count * 0.12);
 
-  if (e.tspin && e.count === 0) {
-    audio.sfx('tspin');
-    popup('T-SPIN', 'p-tspin');
-    shockwave(0, gridToWorld(e.rows[0], 0).y, 0xffffff, 11, 0.6);
-  }
   if (big) {
     audio.sfx('tetris');
     timeScale = 0.25;
@@ -1200,14 +1230,15 @@ game.on('gameover', () => {
   }
   const rows = [...byRow.keys()].sort((a, b) => b - a);
   rows.forEach((r, idx) => {
-    setTimeout(() => {
+    schedule(() => {
+      if (game.state !== 'over') return;
       for (const m of byRow.get(r)) {
         makeDebris(m, {
           x: (Math.random() - 0.5) * 6,
           y: -2 - Math.random() * 3,
           z: 1 + Math.random() * 4,
         }, 1.2);
-        burst(m.position.x, m.position.y, 0.4, COLORS[m.userData.type] || 0xff3860, 6,
+        burst(m.position.x, m.position.y, 0.4, COLORS[m.userData.type] || 0xe8556f, 6,
           { speed: 3, up: 2, life: 0.7, size: 8, gravity: 8 });
       }
       shake(0.25);
@@ -1222,7 +1253,8 @@ game.on('gameover', () => {
     highScore = game.score;
     try { localStorage.setItem('neon-tetris-3d-hs', String(highScore)); } catch (err) { /* ignore */ }
   }
-  setTimeout(() => {
+  schedule(() => {
+    if (game.state !== 'over') return;
     els.goStats.innerHTML = `
       <div class="go-score">${game.score.toLocaleString('en-US')}</div>
       <div class="go-grid">
@@ -1245,6 +1277,9 @@ game.on('resume', () => { audio.setMusicOn(true); hideScreens(); });
 /* --------------------- board reset helper -------------------------- */
 
 function clearBoardVisuals() {
+  for (const m of activeCubes) {
+    if (!liveBlocks.has(m)) releaseBlock(m);
+  }
   for (const m of [...liveBlocks]) releaseBlock(m);
   lockedMap.clear();
   for (const d of debrisList) releaseBlock(d.mesh);
@@ -1265,18 +1300,21 @@ function clearBoardVisuals() {
 /* --------------------------- screens ------------------------------- */
 
 const SCREEN_IDS = { menu: 'menu', pause: 'pause-screen', gameover: 'gameover-screen' };
+const touchDevice = !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
 function showScreen(name) {
   els.overlay.classList.remove('hidden');
   for (const s of ['menu', 'pause-screen', 'gameover-screen']) {
     document.getElementById(s).classList.add('hidden');
   }
   if (name) document.getElementById(SCREEN_IDS[name]).classList.remove('hidden');
+  if (touchDevice) els.touch.classList.toggle('hidden', !!name);
 }
 function hideScreens() {
   els.overlay.classList.add('hidden');
   for (const s of ['menu', 'pause-screen', 'gameover-screen']) {
     document.getElementById(s).classList.add('hidden');
   }
+  if (touchDevice) els.touch.classList.remove('hidden');
 }
 
 let countingDown = false;
@@ -1309,7 +1347,7 @@ function startCountdown() {
       punch(5);
     }
     i++;
-    setTimeout(tick, txt === 'GO' ? 500 : 620);
+    schedule(tick, txt === 'GO' ? 500 : 620);
   };
   tick();
 }
@@ -1330,7 +1368,7 @@ window.addEventListener('pointerdown', anyGesture, { once: false });
 window.addEventListener('keydown', anyGesture, { once: false });
 
 window.addEventListener('keydown', (e) => {
-  if (e.repeat && e.code !== 'ArrowLeft' && e.code !== 'ArrowRight') return;
+  if (e.repeat) return; /* repeats are driven by our own DAS/ARR loop */
   switch (e.code) {
     case 'ArrowLeft': case 'ArrowRight': {
       e.preventDefault();
@@ -1361,6 +1399,8 @@ window.addEventListener('keydown', (e) => {
       els.mute.classList.toggle('muted', audio.muted);
       break;
     case 'KeyR':
+      if (e.ctrlKey || e.metaKey || e.altKey) break;
+      e.preventDefault();
       if (game.state === 'paused' || game.state === 'over' || game.state === 'playing' || game.state === 'clearing') {
         restart();
       }
@@ -1433,7 +1473,7 @@ bindTouch('t-rot', () => game.rotate(1));
 bindTouch('t-drop', () => game.hardDrop());
 bindTouch('t-hold', () => game.holdPiece());
 bindTouch('t-soft', () => { game.setSoftDrop(true); }, () => { game.setSoftDrop(false); });
-if (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) {
+if (touchDevice) {
   els.touch.classList.remove('hidden');
 }
 
@@ -1467,16 +1507,29 @@ document.getElementById('gameover-screen').addEventListener('click', () => {
 });
 
 function restart() {
+  flushTimers();
   game.reset();
   audio.stopMusic();
   clearBoardVisuals();
+  els.popups.innerHTML = '';
+  els.banner.innerHTML = '';
   els.hud.classList.remove('hidden');
   els.level.textContent = '1';
   els.lines.textContent = '0';
   els.time.textContent = '00:00';
   redrawHold();
+  redrawNext();
   startCountdown();
 }
+
+/* stuck-key guard: releasing input when the window loses focus */
+window.addEventListener('blur', () => {
+  input.left = false;
+  input.right = false;
+  input.soft = false;
+  input.dasDir = 0;
+  game.setSoftDrop(false);
+});
 
 /* auto-pause when tab hidden */
 document.addEventListener('visibilitychange', () => {
@@ -1495,7 +1548,6 @@ function onResize() {
   camera.updateProjectionMatrix();
   renderer.setSize(w, h);
   composer.setSize(w, h);
-  bloomPass.setSize(w, h);
   updateFxaaResolution();
 }
 window.addEventListener('resize', onResize);

@@ -176,5 +176,64 @@ function check(name, cond) {
   check('soft drop adds score', g.score > 0);
 }
 
+/* --- review fixes --- */
+{
+  const g = new Game();
+  g.start();
+  check('pieces cannot exist above the buffer', g.collides(3, -1, SHAPES.T) === true);
+}
+
+{
+  const g = new Game();
+  g.start();
+  g.active = g.makePiece('O');
+  g.setSoftDrop(true);
+  g.update(0.06);
+  g.setSoftDrop(false);
+  check('soft drop invalidates T-spin (lastAction fall)', g.lastAction === 'fall');
+}
+
+{
+  const g = new Game();
+  g.start();
+  let ev0 = null;
+  g.on('tspin0', (e) => { ev0 = e; });
+  g.grid[18][3] = 'J'; g.grid[18][5] = 'J';
+  g.grid[20][3] = 'J'; g.grid[20][5] = 'J';
+  g.active = g.makePiece('T');
+  g.active.x = 3; g.active.y = 18;
+  g.rotate(1);
+  g.rotate(1);
+  g.lockPiece();
+  check('no-line T-spin: 400 pts + tspin0 event', ev0 && ev0.tspin === 'full' && g.score === 400);
+}
+
+{
+  const g = new Game();
+  g.start();
+  let ev0 = null;
+  g.on('tspin0', (e) => { ev0 = e; });
+  g.grid[18][3] = 'J'; g.grid[18][5] = 'J';
+  g.grid[20][3] = 'J'; g.grid[20][5] = 'J';
+  g.active = g.makePiece('T');
+  g.active.x = 3; g.active.y = 18;
+  g.rotate(1);
+  g.rotate(1);
+  g.hardDrop();
+  check('zero-distance hard drop still credits T-spin',
+    ev0 && ev0.tspin === 'full' && g.score === 400);
+}
+
+{
+  const g = new Game();
+  g.start();
+  g.active = g.makePiece('T');
+  g.active.x = 3; g.active.y = 18;
+  const before = g.stats.pieces;
+  g.holdPiece();
+  check('held piece spawn counts in stats', g.stats.pieces === before + 1);
+  check('second hold denied', g.holdPiece() === false);
+}
+
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);
