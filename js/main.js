@@ -149,7 +149,7 @@ const BLOCK_FRAG = `
     col += uColor * inner * 0.22;
     col += uColor * fres * 0.75;
     float pulse = uPulse * (0.65 + 0.35 * sin(uTime * 7.0));
-    col *= (1.0 + pulse * 0.55 + uBoost * 1.4);
+    col *= (1.0 + pulse * 0.3 + uBoost * 0.8);
     col = mix(col, col * 0.22, uDim);
     float cd = length(vUv - 0.5);
     col += uColor * smoothstep(0.16, 0.0, cd) * 0.3;
@@ -555,7 +555,7 @@ function updateActiveCubes(dt) {
   const type = game.active ? game.active.type : null;
   if (type) {
     activeMats[type].uniforms.uPulse.value = 1;
-    activeMats[type].uniforms.uBoost.value = 0.12;
+    activeMats[type].uniforms.uBoost.value = 0.05;
   }
   lean = lerp(lean, leanTarget, 1 - Math.exp(-dt * 8));
   leanTarget = lerp(leanTarget, 0, 1 - Math.exp(-dt * 4));
