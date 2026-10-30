@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>NEON TETRIS · 3D</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="stage"></div>
+
+  <div id="ui">
+    <!-- ======================= HUD ======================= -->
+    <div id="hud" class="hidden">
+      <div class="panel" id="hud-left">
+        <div class="label">HOLD</div>
+        <div id="hold-wrap"><canvas id="hold-canvas" width="140" height="96"></canvas></div>
+        <div class="stat"><span>LEVEL</span><b id="level-val">1</b></div>
+        <div class="stat"><span>LINES</span><b id="lines-val">0</b></div>
+        <div class="stat"><span>TIME</span><b id="time-val">00:00</b></div>
+      </div>
+
+      <div class="panel" id="hud-right">
+        <div class="label">SCORE</div>
+        <div id="score-val">0</div>
+        <div id="combo-badge">COMBO ×2</div>
+        <div class="label" style="margin-top:14px">NEXT</div>
+        <div id="next-list"></div>
+      </div>
+    </div>
+
+    <div id="popups"></div>
+    <div id="banner"></div>
+    <div id="countdown" class="hidden">3</div>
+
+    <!-- ===================== OVERLAYS ===================== -->
+    <div id="overlay">
+      <div id="menu" class="screen">
+        <h1 class="title"><span class="t-neon">NEON</span> <span class="t-tetris">TETRIS</span></h1>
+        <div class="subtitle">3D · WEBGL · BLOOM EDITION</div>
+        <div id="menu-hs" class="hs"></div>
+        <div class="press-start">PRESS ENTER · TAP TO START</div>
+        <div class="controls">
+          <div><span>MOVE</span><b>&larr; &rarr;</b></div>
+          <div><span>ROTATE</span><b>&uarr; / Z</b></div>
+          <div><span>SOFT DROP</span><b>&darr;</b></div>
+          <div><span>HARD DROP</span><b>SPACE</b></div>
+          <div><span>HOLD</span><b>C</b></div>
+          <div><span>PAUSE</span><b>P</b></div>
+          <div><span>MUTE</span><b>M</b></div>
+          <div><span>RESTART</span><b>R</b></div>
+        </div>
+      </div>
+
+      <div id="pause-screen" class="screen hidden">
+        <h1 class="pause-title">PAUSED</h1>
+        <div class="press-start">P — RESUME &nbsp;·&nbsp; R — RESTART</div>
+      </div>
+
+      <div id="gameover-screen" class="screen hidden">
+        <h1 class="go-title">GAME OVER</h1>
+        <div id="new-hs" class="hidden">NEW HIGH SCORE</div>
+        <div id="go-stats"></div>
+        <div class="press-start">PRESS ENTER · TAP TO RETRY</div>
+      </div>
+    </div>
+
+    <!-- ================== TOUCH CONTROLS ================== -->
+    <div id="touch" class="hidden">
+      <div class="t-cluster">
+        <button id="t-left" class="t-btn">&#9664;</button>
+        <button id="t-right" class="t-btn">&#9654;</button>
+      </div>
+      <div class="t-cluster">
+        <button id="t-rot" class="t-btn">&#8635;</button>
+        <button id="t-soft" class="t-btn">&#9660;</button>
+        <button id="t-drop" class="t-btn">&#10515;</button>
+        <button id="t-hold" class="t-btn small">H</button>
+      </div>
+    </div>
+
+    <div id="bottom-bar">
+      <div id="hint">ARROWS MOVE · Z/X ROTATE · SPACE DROP · C HOLD · P PAUSE · M MUTE</div>
+      <button id="mute-btn" title="Mute (M)">
+        <svg viewBox="0 0 24 24" width="18" height="18">
+          <path fill="currentColor" d="M3 9v6h4l5 5V4L7 9H3z"/>
+          <path class="wave" fill="currentColor" d="M14 8.8a4.5 4.5 0 0 1 0 6.4l1.4 1.4a6.5 6.5 0 0 0 0-9.2L14 8.8z"/>
+          <path class="wave" fill="currentColor" d="M16.6 6.2a8 8 0 0 1 0 11.6l1.4 1.4a10 10 0 0 0 0-14.4l-1.4 1.4z"/>
+          <path class="cross" fill="currentColor" d="M16 8.9l1.4-1.4 2.1 2.1 2.1-2.1L23 8.9l-2.1 2.1 2.1 2.1-1.4 1.4-2.1-2.1-2.1 2.1-1.4-1.4 2.1-2.1L16 8.9z"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <div id="err-log" style="display:none;position:fixed;left:0;top:0;right:0;z-index:99;background:#500;color:#fff;font:12px monospace;padding:6px;white-space:pre-wrap;pointer-events:none"></div>
+
+  <script src="js/lib/three.min.js"></script>
+  <script src="js/lib/EffectComposer.js"></script>
+  <script src="js/lib/CopyShader.js"></script>
+  <script src="js/lib/LuminosityHighPassShader.js"></script>
+  <script src="js/lib/RenderPass.js"></script>
+  <script src="js/lib/ShaderPass.js"></script>
+  <script src="js/lib/UnrealBloomPass.js"></script>
+  <script src="js/lib/FXAAShader.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/game.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
